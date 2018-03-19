@@ -1,0 +1,7 @@
+[package]
+name = "rusterizer"
+version = "0.1.0"
+authors = ["Will Cassella <wcassella@gmail.com>"]
+
+[dependencies]
+image = "*"
