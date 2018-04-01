@@ -1,30 +1,52 @@
 // type_tuple.rs
 
-use super::StriderComponent;
-
-pub trait StriderTypeTuple<'a>: 'a + Sized {
-    type Components: ComponentTypeTuple<'a, Types=Self>;
-    type References;
+pub trait RefType: Sized {
+    type Component: ComponentType<Ref=Self>;
 }
 
-pub trait ComponentTypeTuple<'a>: 'a + Sized {
-    type Types: StriderTypeTuple<'a, Components=Self>;
-    
-    fn next(&mut self);
+pub trait ComponentType: Sized {
+    type Ref: RefType<Component=Self>;
+
+    unsafe fn as_ref(&self) -> Self::Ref;
+
+    unsafe fn next(&mut self);
+
+    unsafe fn prev(&mut self);
+}
+
+pub trait RefTypeTuple: Sized {
+    type Components: ComponentTypeTuple<Refs=Self>;
+}
+
+pub trait ComponentTypeTuple: Sized {
+    type Refs: RefTypeTuple<Components=Self>;
+
+    unsafe fn as_ref(&self) -> Self::Refs;
+
+    unsafe fn next(&mut self);
+
+    unsafe fn prev(&mut self);
 }
 
 macro_rules! impl_type_tuple {
-    ( $t1:ident $(,$ts:ident)* : $($is:tt),*) => {
-       impl<'a, $t1: 'a, $($ts: 'a),*> StriderTypeTuple<'a> for ( $t1, $($ts),* ) {
-           type Components = ( StriderComponent<'a, $t1>, $(StriderComponent<'a, $ts>),* );
-           type References = ( &'a $t1, $(&'a $ts),* );
+    ( $($ts:ident),* : $($is:tt),* ) => {
+       impl<$($ts: RefType),*> RefTypeTuple for ( $($ts,)* ) {
+           type Components = ( $($ts::Component,)* );
        }
 
-       impl<'a, $t1: 'a, $($ts: 'a),*> ComponentTypeTuple<'a> for ( StriderComponent<'a, $t1>, $(StriderComponent<'a, $ts>),* ) {
-           type Types = ( $t1, $($ts),* );
+       impl<$($ts: ComponentType),*> ComponentTypeTuple for ( $($ts,)* ) {
+           type Refs = ( $($ts::Ref,)* );
 
-           fn next(&mut self) {
-               $(self.$is.next());*
+           unsafe fn as_ref(&self) -> Self::Refs {
+               ( $(self.$is.as_ref(),)* )
+           }
+
+           unsafe fn next(&mut self) {
+               $(self.$is.next();)*
+           }
+
+           unsafe fn prev(&mut self) {
+               $(self.$is.prev();)*
            }
        }
     };

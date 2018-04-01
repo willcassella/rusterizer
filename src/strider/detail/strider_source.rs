@@ -1,6 +1,6 @@
 // strider_source.rs
 use std::mem::size_of;
-use super::StriderComponent;
+use super::{RefType, ComponentType};
 
 pub trait StriderSource {
     type Base;
@@ -9,56 +9,42 @@ pub trait StriderSource {
      * Returns the number of things you can stride over.
      * For arrays this is the length of the array, for striders this is the len.
      */
-    fn len(
-        &self
-    ) -> usize;
+    fn len(&self) -> usize;
 
     /**
      * Returns the address of the 'base' object to get components from
      * For arrays this is the address of the first(?) element
      * For Striders this is the address of the component tuple.
      */
-    fn base(
-        &self
-    ) -> *const Self::Base;
+    fn base(&self) -> *const Self::Base;
 
-    fn component<'a, T>(
-        &'a self,
-        addr: *const T
-    ) -> StriderComponent<'a, T>;
+    fn component<T: RefType>(comp: T) -> T::ComponentType;
 }
 
 impl<T> StriderSource for [T] {
     type Base = T;
 
-    fn len(
-        &self,
-    ) -> usize {
+    fn len(&self) -> usize {
         <[T]>::len(self)
     }
 
-    fn base(
-        &self,
-    ) -> *const Self::Base {
+    fn base(&self) -> *const Self::Base {
         self.as_ptr()
     }
 
-    fn component<'a, M>(
-        &'a self,
-        addr: *const M,
-    ) -> StriderComponent<'a, M> {
+    fn component<M>(addr: *const M) -> StriderComponent<'a, M> {
         StriderComponent::new(addr, size_of::<i32>() as isize)
     }
 }
 
 macro_rules! impl_StriderSource_for_array {
-    ($x:expr) => {
-       impl<T> StriderSource for [T; $x] {
+    ($sz:expr) => {
+       impl<T> StriderSource for [T; $sz] {
            type Base = T;
            fn len(
                &self,
            ) -> usize {
-               $x
+               $sz
            }
 
            fn base(
@@ -73,7 +59,7 @@ macro_rules! impl_StriderSource_for_array {
            ) -> StriderComponent<'a, M> {
                StriderComponent::new(addr, size_of::<T>() as isize)
            }
-       } 
+       }
     };
 }
 

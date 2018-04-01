@@ -1,17 +1,17 @@
 // strider/mod.rs
 pub mod detail;
-use self::detail::ComponentTypeTuple;
+use self::detail::{RefTypeTuple, ComponentTypeTuple};
 
 #[derive(Copy, Clone)]
-pub struct Strider<'a, Types: detail::StriderTypeTuple<'a>> {
+pub struct Strider<Types: RefTypeTuple> {
     len: usize,
     components: Types::Components,
 }
 
-pub fn new_strider<'a, Components: ComponentTypeTuple<'a>>(
+pub fn new_strider<Components: ComponentTypeTuple>(
     len: usize,
     comps: Components,
-) -> Strider<'a, Components::Types> { 
+) -> Strider<Components::Refs> {
     Strider {
         len: len,
         components: comps,
@@ -20,25 +20,35 @@ pub fn new_strider<'a, Components: ComponentTypeTuple<'a>>(
 
 #[macro_export]
 macro_rules! strider {
-    ( $src:expr, $i1: ident $(,$is:ident)* ) => {{
+    ( $src:expr, $($is:ident),* ) => {{
+        let len = $crate::strider::detail::StriderSource::len(&$src);
         let base = $crate::strider::detail::StriderSource::base(&$src);
         unsafe {
             $crate::strider::new_strider(
-                $crate::strider::detail::StriderSource::len(&$src),
-                ( $crate::strider::detail::StriderSource::component(&$src, &(*base).$i1), $($crate::strider::detail::StriderSource::component(&$x, &(*base).$is)),* ),
+                len,
+                ( $($crate::strider::detail::StriderSource::component(&$x, &(*base).$is)),* ),
             )
         }
     }};
 }
 
-pub struct Iter<'a, Types: detail::StriderTypeTuple<'a>> {
-    strider: Strider<'a, Types>,
+pub struct Iter<Types: RefTypeTuple> {
+    strider: Strider<Types>,
+    idx: usize,
 }
 
-impl<'a, Types: detail::StriderTypeTuple<'a>> Iterator for Iter<'a, Types> {
-    type Item = Types::References;
+impl<Types: RefTypeTuple> Iterator for Iter<Types> {
+    type Item = Types;
 
     fn next(&mut self) -> Option<Self::Item> {
-
+        if self.idx < self.strider.len {
+            unsafe {
+                let result = self.strider.components.as_ref();
+                self.strider.components.next();
+                Some(result)
+            }
+        } else {
+            None
+        }
     }
 }
